@@ -1,0 +1,135 @@
+data.table for R
+========================================================
+author: David Whitney 
+date: 21 July, 2014
+
+Acknowledgements/Resources
+========================================================
+I first learned data.table from the materials at
+
+- https://github.com/raphg/Biostat-578
+
+- http://cran.r-project.org/web/packages/data.table/vignettes/datatable-intro.pdf
+
+- http://datatable.r-forge.r-project.org/datatable-faq.pdf
+
+R data structures
+========================================================
+Vectors, Matrices and Arrays allow storage of a single class of element (integer, double, etc.). Data.frames and lists allow greater flexibility, with data.frames being the go-to for most data analyses in R.
+
+data.table
+========================================================
+Data.table is an R package that inherits the data.frame class and adds new functionality. One of the goals in writing the package was to make writing/reading code easier.
+
+```{r}
+data(cars)
+library("data.table")
+(dt <- data.table(cars))
+```
+
+
+Filtering rows: data.frame
+========================================================
+There are several ways to subset a data.frame. All of them look like some variant of:
+```{r}
+cars[with( cars, speed >17 & dist <60 ),]
+```
+
+Filtering rows: data.table and "i"
+========================================================
+For a data.table, filtering can be done without accessing a column by car$speed or the with() function. The following syntax is calling the "i" function which essentially creates a temporary environment where the columns are treated as local variables.
+```{r}
+dt[speed >17 & dist <60,]
+```
+
+Column computations: data.able and "j"
+=========================================================
+Similar to the "i" function for rows, we can do column-wise computations with what is called the "j" function.
+```{r}
+dt[,dist/speed]
+```
+
+Column updates I
+==========================================================
+We may want to keep newly computed values instead of just displaying them. No problem! Use the symbol ":=" in your above call to "j" to define a new column at the end of your table:
+```{r}
+dt[,time:=dist/speed]
+```
+
+Column updates II
+==========================================================
+We can reorder the columns in a data.table by
+```{r}
+(setcolorder(dt,c("dist","time","speed")))
+```
+
+Column updates III
+==========================================================
+We can delete a column by setting it to NULL.
+```{r}
+dt[,time:=NULL]
+```
+
+By
+==========================================================
+If you would like to cluster observations by values in a certain column, you can include a third argument. This is similar to using tapply() to apply a function by a factor(s). 
+
+```{r}
+dt[,mean(dist),by=speed]
+```
+
+By, by
+==========================================================
+Note that it is not strictly necessary to create a new column when you do this, though it is possible. In fact, you can create several new columns at once by passing a vector of names and a list of new columns.
+```{r}
+dt[,c("iMeanIt","SD"):=list(mean(dist),sd(dist)),by=speed]
+```
+
+Memory
+==========================================================
+We haven't been using the assignment operators like "<-" and "=". The reason for this is that data.table is written to update currently allocated memory and avoid copying large units of memory.
+
+Working with memory
+==========================================================
+Because of the way data.table handles memory, many updates we perform on data.frames are handled slightly differently. Failing to do so will usually merit a warning from R, but can result in a segfault.
+```{r}
+#names(dt) <- c("do","not","use","this")
+oldies <- names(dt)
+goodies <- c("these","are","better","names")
+setnames(dt, oldies, goodies)
+```
+Another example of this was setcolorder().
+
+The key to speed
+=========================================================
+Another important function to use with data.table is setkey(). When we set a key, we are specifying a column to sort the data.table by. This also allows us to perform joins on multiple tables sharing the same key.
+
+```{r}
+dt1 <- as.data.table(cars)
+dt2 <- copy(dt1) #so we don't change dt1 as well!
+invisible(dt2[,meanbyd:=mean(speed),by=dist])
+setkey(dt1,dist)
+setkey(dt2,dist)
+```
+Note: without using copy() first, we would be accessing the same memory with both dt1 and dt2!
+
+Joins
+=========================================================
+```{r}
+head(dt1)
+head(dt1[,dt2])
+```
+
+More
+=========================================================
+
+- data.table uses binary search instead of a vector scan to find the target elements for joins or "by"
+
+- hence we can write concise code that is also significantly faster than equivalent methods for data.frames
+
+- data.tables inherit from data.frame and are compatible with any function that takes data.frame input only
+
+Example usage
+=========================================================
+
+(on pearson)
